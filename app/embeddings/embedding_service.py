@@ -9,7 +9,10 @@ class EmbeddingService:
 
         self.embedding_model = SentenceTransformerEmbedding()
 
-    def process(self, chunks):
+    def embed_documents(
+        self,
+        chunks,
+    ):
 
         texts = [
             chunk["text"]

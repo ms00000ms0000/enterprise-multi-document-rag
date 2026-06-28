@@ -7,6 +7,11 @@ class ChunkingService:
 
         self.chunker = RecursiveChunker()
 
-    def process(self, documents):
+    def chunk_documents(
+        self,
+        documents,
+    ):
 
-        return self.chunker.split(documents)
+        return self.chunker.split(
+            documents
+        )

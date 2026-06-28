@@ -8,27 +8,49 @@ class BM25Service:
         self.bm25 = None
         self.chunks = []
 
-    def index(self, chunks):
+    def index(
+        self,
+        chunks,
+    ):
 
         self.chunks = chunks
 
         tokenized = [
-            chunk.text.lower().split()
+            chunk["text"].lower().split()
             for chunk in chunks
         ]
 
-        self.bm25 = BM25Okapi(tokenized)
+        self.bm25 = BM25Okapi(
+            tokenized
+        )
 
-    def search(self, query, k=5):
+    def search(
+        self,
+        query,
+        k=5,
+    ):
 
         tokens = query.lower().split()
 
-        scores = self.bm25.get_scores(tokens)
+        scores = self.bm25.get_scores(
+            tokens
+        )
 
         ranked = sorted(
             zip(scores, self.chunks),
+            key=lambda x: x[0],
             reverse=True,
-            key=lambda x: x[0]
         )
 
-        return ranked[:k]
+        results = []
+
+        for score, chunk in ranked[:k]:
+
+            results.append(
+                {
+                    "score": float(score),
+                    "chunk": chunk,
+                }
+            )
+
+        return results
