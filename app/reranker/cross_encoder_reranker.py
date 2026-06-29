@@ -15,8 +15,14 @@ class CrossEncoderReranker:
         results,
     ):
 
+        if not results:
+            return []
+
         pairs = [
-            (query, result["chunk"].text)
+            (
+                query,
+                result["chunk"]["text"],
+            )
             for result in results
         ]
 
@@ -24,13 +30,20 @@ class CrossEncoderReranker:
             pairs
         )
 
-        reranked = sorted(
-            zip(scores, results),
+        reranked = []
+
+        for score, result in zip(
+            scores,
+            results,
+        ):
+
+            item = result.copy()
+            item["score"] = float(score)
+            reranked.append(item)
+
+        reranked.sort(
+            key=lambda x: x["score"],
             reverse=True,
-            key=lambda x: x[0]
         )
 
-        return [
-            result
-            for score, result in reranked
-        ]
+        return reranked

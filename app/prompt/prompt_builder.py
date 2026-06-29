@@ -13,10 +13,11 @@ class PromptBuilder:
             chunk = result["chunk"]
 
             context_parts.append(
-                f"""Source: {chunk.source}
-Page: {chunk.page}
+                f"""
+Source: {chunk['source']}
+Page: {chunk['page']}
 
-{chunk.text}
+{chunk['text']}
 """
             )
 
@@ -25,15 +26,15 @@ Page: {chunk.page}
         )
 
         prompt = f"""
-You are an enterprise document assistant.
+You are an Enterprise Multi-Document RAG Assistant.
 
 Answer ONLY from the provided context.
 
 If the answer is not present in the context, reply exactly:
 
-"I could not find this information in the uploaded documents."
+I could not find this information in the uploaded documents.
 
-Do not make assumptions.
+Never make assumptions.
 
 ==========================
 Context

@@ -7,7 +7,10 @@ class RRFService:
 
         self.k = k
 
-    def fuse(self, result_sets):
+    def fuse(
+        self,
+        result_sets,
+    ):
 
         scores = defaultdict(float)
         objects = {}
@@ -19,14 +22,15 @@ class RRFService:
                 chunk = result["chunk"]
 
                 key = (
-                    chunk.source,
-                    chunk.page,
-                    chunk.text,
+                    chunk["source"],
+                    chunk["page"],
+                    chunk["text"],
                 )
 
                 scores[key] += 1 / (self.k + rank)
 
-                objects[key] = result
+                if key not in objects:
+                    objects[key] = result
 
         fused = sorted(
             scores.items(),
@@ -34,7 +38,12 @@ class RRFService:
             reverse=True,
         )
 
-        return [
-            objects[key]
-            for key, _ in fused
-        ]
+        final_results = []
+
+        for key, score in fused:
+
+            result = objects[key].copy()
+            result["score"] = score
+            final_results.append(result)
+
+        return final_results

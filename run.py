@@ -1,7 +1,5 @@
 from pathlib import Path
 
-from docx import Document
-
 from app.pipelines.index_pipeline import IndexPipeline
 from app.pipelines.query_pipeline import QueryPipeline
 
@@ -21,6 +19,7 @@ def main():
     ).strip()
 
     if not Path(file_path).exists():
+
         print(f"\n❌ File not found: {file_path}")
         return
 
@@ -46,8 +45,14 @@ def main():
         ).strip()
 
         if query.lower() == "exit":
+
             print("\n👋 Goodbye!")
             break
+
+        if not query:
+
+            print("\n⚠ Please enter a question.")
+            continue
 
         print("\nSearching...\n")
 
@@ -61,6 +66,29 @@ def main():
         print("=" * 60)
 
         print(response["answer"])
+
+        print("\n" + "=" * 60)
+        print("Sources")
+        print("=" * 60)
+
+        citations = response["citations"]
+
+        if not citations:
+
+            print("No citations found.")
+
+        else:
+
+            for index, citation in enumerate(
+                citations,
+                start=1,
+            ):
+
+                print(
+                    f"{index}. "
+                    f"{citation['source']} "
+                    f"(Page {citation['page']})"
+                )
 
 
 if __name__ == "__main__":
