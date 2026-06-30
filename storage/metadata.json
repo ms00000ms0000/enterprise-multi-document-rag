@@ -1,0 +1,18 @@
+{
+    "documents": [
+        {
+            "file": "docs\\company_policy.pdf"
+        },
+        {
+            "file": "docs\\employee_handbook.pdf"
+        },
+        {
+            "file": "docs\\employee_insurance_policy.pdf"
+        },
+        {
+            "file": "docs\\human_resources_policy.pdf"
+        }
+    ],
+    "total_chunks": 5,
+    "embedding_dimension": 384
+}

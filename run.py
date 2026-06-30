@@ -1,95 +1,199 @@
 from pathlib import Path
 
-from app.pipelines.index_pipeline import IndexPipeline
-from app.pipelines.query_pipeline import QueryPipeline
+from app.logging.logger import app_logger
+
+from app.pipelines.index_pipeline import (
+    IndexPipeline,
+)
+from app.pipelines.query_pipeline import (
+    QueryPipeline,
+)
 
 
 def main():
 
-    print("=" * 60)
-    print("Enterprise Multi-Document RAG Assistant")
-    print("=" * 60)
+    try:
 
-    print("\nExample:")
-    print("docs/company_policy.pdf")
-    print()
-
-    file_path = input(
-        "Enter document path: "
-    ).strip()
-
-    if not Path(file_path).exists():
-
-        print(f"\n❌ File not found: {file_path}")
-        return
-
-    print("\nIndexing document...\n")
-
-    index_pipeline = IndexPipeline()
-
-    index_result = index_pipeline.run(
-        file_path
-    )
-
-    print("\n✅ Document indexed successfully!")
-
-    query_pipeline = QueryPipeline(
-        vector_service=index_result["vector_service"],
-        bm25_service=index_result["bm25_service"],
-    )
-
-    while True:
-
-        query = input(
-            "\nAsk a question (type 'exit' to quit): "
-        ).strip()
-
-        if query.lower() == "exit":
-
-            print("\n👋 Goodbye!")
-            break
-
-        if not query:
-
-            print("\n⚠ Please enter a question.")
-            continue
-
-        print("\nSearching...\n")
-
-        response = query_pipeline.run(
-            query=query,
-            top_k=5,
+        app_logger.info(
+            "Application started."
         )
 
         print("=" * 60)
-        print("Answer")
+        print("Enterprise Multi-Document RAG Assistant")
         print("=" * 60)
 
-        print(response["answer"])
+        print("\nExample:")
+        print("docs")
+        print()
 
-        print("\n" + "=" * 60)
-        print("Sources")
-        print("=" * 60)
+        folder_path = input(
+            "Enter documents folder: "
+        ).strip()
 
-        citations = response["citations"]
+        if not folder_path:
 
-        if not citations:
+            folder_path = "docs"
 
-            print("No citations found.")
+        if not Path(folder_path).exists():
 
-        else:
+            app_logger.error(
+                f"Folder not found: {folder_path}"
+            )
 
-            for index, citation in enumerate(
-                citations,
-                start=1,
-            ):
+            print(
+                f"\n❌ Folder not found: {folder_path}"
+            )
+
+            return
+
+        print(
+            "\nScanning documents..."
+        )
+
+        app_logger.info(
+            f"Scanning folder: {folder_path}"
+        )
+
+        index_pipeline = IndexPipeline()
+
+        index_result = index_pipeline.run(
+            folder_path
+        )
+
+        print(
+            "\n✅ Documents indexed successfully!"
+        )
+
+        app_logger.info(
+            "Documents indexed successfully."
+        )
+
+        query_pipeline = QueryPipeline(
+            vector_service=index_result[
+                "vector_service"
+            ],
+            bm25_service=index_result[
+                "bm25_service"
+            ],
+        )
+
+        while True:
+
+            query = input(
+                "\nAsk a question (type 'exit' to quit): "
+            ).strip()
+
+            if query.lower() == "exit":
+
+                app_logger.info(
+                    "Application closed by user."
+                )
 
                 print(
-                    f"{index}. "
-                    f"{citation['source']} "
-                    f"(Page {citation['page']})"
+                    "\n👋 Goodbye!"
                 )
+
+                break
+
+            if not query:
+
+                print(
+                    "\n⚠ Please enter a question."
+                )
+
+                continue
+
+            app_logger.info(
+                f"User Query: {query}"
+            )
+
+            print(
+                "\nSearching...\n"
+            )
+
+            try:
+
+                response = query_pipeline.run(
+                    query=query,
+                    top_k=5,
+                )
+
+            except Exception as error:
+
+                app_logger.exception(
+                    "Query processing failed."
+                )
+
+                print(
+                    "\n❌ Failed to process your query."
+                )
+
+                print(
+                    "Check logs/application.log for details."
+                )
+
+                continue
+
+            print("=" * 60)
+            print("Answer")
+            print("=" * 60)
+
+            print(
+                response["answer"]
+            )
+
+            print("\n" + "=" * 60)
+            print("Sources")
+            print("=" * 60)
+
+            citations = response[
+                "citations"
+            ]
+
+            if not citations:
+
+                print(
+                    "No citations found."
+                )
+
+            else:
+
+                for index, citation in enumerate(
+                    citations,
+                    start=1,
+                ):
+
+                    print(
+                        f"{index}. "
+                        f"{citation['source']} "
+                        f"(Page {citation['page']})"
+                    )
+
+    except KeyboardInterrupt:
+
+        app_logger.warning(
+            "Application interrupted by user."
+        )
+
+        print(
+            "\n\n⚠ Application interrupted."
+        )
+
+    except Exception:
+
+        app_logger.exception(
+            "Fatal application error."
+        )
+
+        print(
+            "\n❌ Unexpected application error."
+        )
+
+        print(
+            "See logs/application.log for details."
+        )
 
 
 if __name__ == "__main__":
+
     main()

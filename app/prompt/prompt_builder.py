@@ -4,6 +4,7 @@ class PromptBuilder:
         self,
         query,
         search_results,
+        conversation_history,
     ):
 
         context_parts = []
@@ -25,10 +26,30 @@ Page: {chunk['page']}
             context_parts
         )
 
+        history_parts = []
+
+        for turn in conversation_history:
+
+            history_parts.append(
+                f"""
+User:
+{turn['question']}
+
+Assistant:
+{turn['answer']}
+"""
+            )
+
+        history = "\n".join(
+            history_parts
+        )
+
         prompt = f"""
 You are an Enterprise Multi-Document RAG Assistant.
 
-Answer ONLY from the provided context.
+Use the previous conversation only when it is relevant.
+
+Answer ONLY from the provided document context.
 
 If the answer is not present in the context, reply exactly:
 
@@ -37,13 +58,19 @@ I could not find this information in the uploaded documents.
 Never make assumptions.
 
 ==========================
-Context
+Conversation History
+==========================
+
+{history}
+
+==========================
+Retrieved Context
 ==========================
 
 {context}
 
 ==========================
-Question
+Current Question
 ==========================
 
 {query}

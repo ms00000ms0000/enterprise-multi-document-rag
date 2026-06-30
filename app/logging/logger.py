@@ -1,5 +1,12 @@
-from loguru import logger
+from pathlib import Path
 import sys
+
+from loguru import logger
+
+
+Path("logs").mkdir(
+    exist_ok=True
+)
 
 logger.remove()
 
