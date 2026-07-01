@@ -1,7 +1,12 @@
-import hashlib
-import tempfile
+import sys
 from pathlib import Path
 
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+import hashlib
 import streamlit as st
 
 from app.pipelines.index_pipeline import (
@@ -37,7 +42,6 @@ from app.ui.components import (
     error_message,
 )
 
-
 st.set_page_config(
     page_title="Enterprise Multi-Document RAG",
     page_icon="📚",
@@ -72,15 +76,22 @@ def generate_signature(
 
     hasher = hashlib.md5()
 
-    for uploaded_file in uploaded_files:
+    for file_path in sorted(uploaded_files):
+
+        path = Path(file_path)
 
         hasher.update(
-            uploaded_file.name.encode()
+            path.name.encode("utf-8")
         )
 
-        hasher.update(
-            uploaded_file.getvalue()
-        )
+        with open(
+            path,
+            "rb",
+        ) as file:
+
+            hasher.update(
+                file.read()
+            )
 
     return hasher.hexdigest()
 
@@ -89,67 +100,41 @@ def build_pipeline(
     uploaded_files,
 ):
 
-    with tempfile.TemporaryDirectory() as temp_dir:
+    with st.spinner(
+        "Indexing documents..."
+    ):
 
-        temp_path = Path(
-            temp_dir
+        index_pipeline = IndexPipeline()
+
+        result = index_pipeline.run(
+            "uploaded_documents"
         )
 
-        for uploaded_file in uploaded_files:
-
-            destination = (
-                temp_path
-                / uploaded_file.name
-            )
-
-            with open(
-                destination,
-                "wb",
-            ) as file:
-
-                file.write(
-                    uploaded_file.getbuffer()
-                )
-
-        with st.spinner(
-            "Indexing documents..."
-        ):
-
-            index_pipeline = IndexPipeline()
-
-            result = index_pipeline.run(
-                str(
-                    temp_path
-                )
-            )
-
-            query_pipeline = QueryPipeline(
-                vector_service=result[
-                    "vector_service"
-                ],
-                bm25_service=result[
-                    "bm25_service"
-                ],
-            )
-
-        st.session_state.query_pipeline = (
-            query_pipeline
+        query_pipeline = QueryPipeline(
+            vector_service=result[
+                "vector_service"
+            ],
+            bm25_service=result[
+                "bm25_service"
+            ],
         )
 
-        st.session_state.documents_loaded = True
+    st.session_state.query_pipeline = (
+        query_pipeline
+    )
 
-        success_message(
-            "Documents indexed successfully."
-        )
+    st.session_state.documents_loaded = True
+
+    success_message(
+        "Documents indexed successfully."
+    )
 
 
 def main():
 
     initialize_session()
 
-    page_header(
-        "Enterprise Multi-Document RAG Assistant"
-    )
+    page_header()
 
     render_sidebar()
 
@@ -164,10 +149,8 @@ def main():
         )
 
         if (
-
             st.session_state.uploaded_signature
             != current_signature
-
         ):
 
             try:

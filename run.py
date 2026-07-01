@@ -253,11 +253,43 @@ def main():
             )
 
             print(
-                f"Retrieved     : {metrics['retrieved_chunks']} chunks"
+                f"BM25 Results  : {metrics['bm25_results']}"
             )
 
             print(
-                f"Final         : {metrics['final_chunks']} chunks"
+                f"Vector Results: {metrics['vector_results']}"
+            )
+
+            print(
+                f"Fused Results : {metrics['fused_results']}"
+            )
+
+            print(
+                f"Reranked      : {metrics['reranked_results']}"
+            )
+
+            print(
+                f"Final Chunks  : {metrics['final_chunks']}"
+            )
+
+            print(
+                f"Documents     : {metrics['documents']}"
+            )
+
+            print(
+                f"Pages         : {metrics['pages']}"
+            )
+
+            print(
+                f"Chunks        : {metrics['chunks']}"
+            )
+
+            print(
+                f"Embedding Dim : {metrics['embedding_dimension']}"
+            )
+
+            print(
+                f"Indexed Vecs  : {metrics['indexed_vectors']}"
             )
 
             print("\n" + "=" * 60)

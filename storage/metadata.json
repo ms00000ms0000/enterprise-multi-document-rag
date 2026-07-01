@@ -1,18 +1,15 @@
 {
     "documents": [
         {
-            "file": "docs\\company_policy.pdf"
+            "file": "uploaded_documents\\5.Activation Function.pdf"
         },
         {
-            "file": "docs\\employee_handbook.pdf"
-        },
-        {
-            "file": "docs\\employee_insurance_policy.pdf"
-        },
-        {
-            "file": "docs\\human_resources_policy.pdf"
+            "file": "uploaded_documents\\company_policy.pdf"
         }
     ],
-    "total_chunks": 5,
-    "embedding_dimension": 384
+    "total_documents": 2,
+    "total_pages": 6,
+    "total_chunks": 11,
+    "embedding_dimension": 384,
+    "indexed_vectors": 11
 }

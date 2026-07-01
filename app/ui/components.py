@@ -1,14 +1,20 @@
 import streamlit as st
 
 
-def page_header():
+def page_header(
+    title="🤖 Enterprise Multi-Document RAG Assistant",
+    subtitle=(
+        "Upload multiple documents, ask questions, "
+        "and receive AI-powered answers with citations."
+    ),
+):
 
     st.title(
-        "🤖 Enterprise Multi-Document RAG Assistant"
+        title
     )
 
     st.caption(
-        "Upload multiple documents, ask questions, and receive AI-powered answers with citations."
+        subtitle
     )
 
 
