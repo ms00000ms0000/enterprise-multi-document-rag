@@ -11,6 +11,10 @@ def initialize_chat():
 
         st.session_state.messages = []
 
+    if "metrics" not in st.session_state:
+
+        st.session_state.metrics = {}
+
 
 def add_user_message(
     message,
@@ -43,6 +47,8 @@ def add_assistant_message(
 def clear_chat():
 
     st.session_state.messages = []
+
+    st.session_state.metrics = {}
 
 
 def render_chat(
@@ -141,6 +147,11 @@ def render_chat(
                             top_k=top_k,
                         )
                     )
+
+                st.session_state.metrics = response.get(
+                    "metrics",
+                    {},
+                )
 
                 st.markdown(
                     response["answer"]
