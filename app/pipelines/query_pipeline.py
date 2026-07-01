@@ -1,3 +1,6 @@
+import time
+
+from app.config.settings import settings
 from app.logging.logger import app_logger
 
 from app.retriever.retrieval_service import RetrievalService
@@ -17,6 +20,10 @@ class QueryPipeline:
         bm25_service,
     ):
 
+        self.vector_service = (
+            vector_service
+        )
+
         self.retrieval_service = RetrievalService(
             vector_service
         )
@@ -35,7 +42,7 @@ class QueryPipeline:
         self.citation_service = CitationService()
 
         self.memory = ConversationMemory(
-            max_turns=5
+            max_turns=settings.MAX_CONVERSATION_TURNS
         )
 
         app_logger.info(
@@ -45,65 +52,130 @@ class QueryPipeline:
     def run(
         self,
         query,
-        top_k=5,
+        top_k=None,
     ):
 
         try:
+
+            if top_k is None:
+
+                top_k = settings.DEFAULT_TOP_K
+
+            pipeline_start = (
+                time.perf_counter()
+            )
 
             app_logger.info(
                 f"Received query: {query}"
             )
 
-            search_results = self.hybrid_search.search(
-                query=query,
-                k=top_k,
+            # --------------------------
+            # Hybrid Retrieval
+            # --------------------------
+
+            retrieval_start = (
+                time.perf_counter()
             )
 
-            fused_results = search_results["fused"]
+            search_results = (
+                self.hybrid_search.search(
+                    query=query,
+                    k=top_k,
+                )
+            )
+
+            retrieval_time = (
+                time.perf_counter()
+                - retrieval_start
+            )
+
+            bm25_results = (
+                search_results["bm25"]
+            )
+
+            vector_results = (
+                search_results["vector"]
+            )
+
+            fused_results = (
+                search_results["fused"]
+            )
 
             app_logger.info(
-                f"Hybrid search returned {len(fused_results)} results."
+                f"Hybrid search returned "
+                f"{len(fused_results)} results."
             )
 
-            reranked_results = self.reranker.process(
-                query=query,
-                results=fused_results,
+            # --------------------------
+            # Reranking
+            # --------------------------
+
+            rerank_start = (
+                time.perf_counter()
             )
 
-            app_logger.info(
-                "Cross-encoder reranking completed."
+            reranked_results = (
+                self.reranker.process(
+                    query=query,
+                    results=fused_results,
+                )
             )
 
-            final_results = reranked_results[:top_k]
-
-            app_logger.info(
-                f"Top {len(final_results)} results selected."
+            rerank_time = (
+                time.perf_counter()
+                - rerank_start
             )
+
+            final_results = (
+                reranked_results[:top_k]
+            )
+
+            # --------------------------
+            # Conversation History
+            # --------------------------
 
             conversation_history = (
                 self.memory.get_history()
             )
 
-            app_logger.info(
-                f"Conversation history contains {len(conversation_history)} turn(s)."
+            # --------------------------
+            # Prompt Building
+            # --------------------------
+
+            prompt_start = (
+                time.perf_counter()
             )
 
-            prompt = self.prompt_builder.build(
-                query=query,
-                search_results=final_results,
-                conversation_history=conversation_history,
+            prompt = (
+                self.prompt_builder.build(
+                    query=query,
+                    search_results=final_results,
+                    conversation_history=conversation_history,
+                )
             )
 
-            app_logger.info(
-                "Prompt constructed successfully."
+            prompt_time = (
+                time.perf_counter()
+                - prompt_start
             )
 
-            answer = self.gemini.generate(
-                prompt
+            # --------------------------
+            # Gemini
+            # --------------------------
+
+            llm_start = (
+                time.perf_counter()
             )
 
-            app_logger.info(
-                "Gemini response generated."
+            answer = (
+                self.gemini.generate(
+                    prompt
+                )
+            )
+
+            llm_time = (
+                time.perf_counter()
+                - llm_start
             )
 
             self.memory.add(
@@ -111,25 +183,118 @@ class QueryPipeline:
                 answer,
             )
 
-            app_logger.info(
-                "Conversation memory updated."
+            citations = (
+                self.citation_service.build(
+                    final_results
+                )
             )
 
-            citations = self.citation_service.build(
-                final_results
+            total_time = (
+                time.perf_counter()
+                - pipeline_start
             )
 
+            # --------------------------
+            # Retrieval Statistics
+            # --------------------------
+
+            index_stats = (
+                self.vector_service.get_statistics()
+            )
+
+            metrics = {
+
+                # Performance
+
+                "retrieval_time": round(
+                    retrieval_time,
+                    3,
+                ),
+
+                "rerank_time": round(
+                    rerank_time,
+                    3,
+                ),
+
+                "prompt_time": round(
+                    prompt_time,
+                    3,
+                ),
+
+                "llm_time": round(
+                    llm_time,
+                    3,
+                ),
+
+                "total_time": round(
+                    total_time,
+                    3,
+                ),
+
+                # Retrieval Counts
+
+                "bm25_results": len(
+                    bm25_results
+                ),
+
+                "vector_results": len(
+                    vector_results
+                ),
+
+                "fused_results": len(
+                    fused_results
+                ),
+
+                "reranked_results": len(
+                    reranked_results
+                ),
+
+                "final_chunks": len(
+                    final_results
+                ),
+
+                # Index Statistics
+
+                "documents": index_stats[
+                    "documents"
+                ],
+
+                "pages": index_stats[
+                    "pages"
+                ],
+
+                "chunks": index_stats[
+                    "chunks"
+                ],
+
+                "embedding_dimension": index_stats[
+                    "dimension"
+                ],
+
+                "indexed_vectors": index_stats[
+                    "vectors"
+                ],
+            }
+
             app_logger.info(
-                f"{len(citations)} citation(s) generated."
+                f"Pipeline Metrics: {metrics}"
             )
 
             return {
+
                 "query": query,
+
                 "answer": answer,
+
                 "retrieved_chunks": final_results,
+
                 "citations": citations,
+
                 "prompt": prompt,
+
                 "conversation_history": conversation_history,
+
+                "metrics": metrics,
             }
 
         except Exception:

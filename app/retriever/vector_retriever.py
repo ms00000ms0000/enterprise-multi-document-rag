@@ -1,4 +1,6 @@
-from app.embeddings.embedding_service import EmbeddingService
+from app.embeddings.embedding_service import (
+    EmbeddingService,
+)
 
 
 class VectorRetriever:
@@ -8,9 +10,13 @@ class VectorRetriever:
         vector_service,
     ):
 
-        self.vector_service = vector_service
+        self.vector_service = (
+            vector_service
+        )
 
-        self.embedding_service = EmbeddingService()
+        self.embedding_service = (
+            EmbeddingService()
+        )
 
     def retrieve(
         self,
@@ -18,8 +24,10 @@ class VectorRetriever:
         k=5,
     ):
 
-        embedding = self.embedding_service.embedding_model.embed_query(
-            query
+        embedding = (
+            self.embedding_service.embed_query(
+                query
+            )
         )
 
         return self.vector_service.search(

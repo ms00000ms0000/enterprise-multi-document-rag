@@ -1,5 +1,6 @@
-from pathlib import Path
+import argparse
 
+from app.config.settings import settings
 from app.logging.logger import app_logger
 
 from app.pipelines.index_pipeline import (
@@ -8,6 +9,46 @@ from app.pipelines.index_pipeline import (
 from app.pipelines.query_pipeline import (
     QueryPipeline,
 )
+from app.session.session_manager import (
+    SessionManager,
+)
+from app.utils.startup_validator import (
+    StartupValidator,
+)
+
+
+def build_argument_parser():
+
+    parser = argparse.ArgumentParser(
+        description="Enterprise Multi-Document RAG Assistant"
+    )
+
+    parser.add_argument(
+        "--docs",
+        type=str,
+        default=None,
+        help="Documents folder",
+    )
+
+    parser.add_argument(
+        "--top-k",
+        type=int,
+        default=settings.DEFAULT_TOP_K,
+        help="Number of retrieved chunks",
+    )
+
+    return parser
+
+
+def print_banner():
+
+    print("=" * 60)
+    print("Enterprise Multi-Document RAG Assistant")
+    print("=" * 60)
+
+    print("\nExample:")
+    print("python run.py --docs docs")
+    print()
 
 
 def main():
@@ -18,40 +59,56 @@ def main():
             "Application started."
         )
 
-        print("=" * 60)
-        print("Enterprise Multi-Document RAG Assistant")
-        print("=" * 60)
+        settings.validate()
 
-        print("\nExample:")
-        print("docs")
-        print()
+        parser = build_argument_parser()
 
-        folder_path = input(
-            "Enter documents folder: "
-        ).strip()
+        args = parser.parse_args()
+
+        print_banner()
+
+        folder_path = args.docs
+
+        if not folder_path:
+
+            folder_path = input(
+                "Enter documents folder: "
+            ).strip()
 
         if not folder_path:
 
             folder_path = "docs"
 
-        if not Path(folder_path).exists():
+        try:
 
-            app_logger.error(
-                f"Folder not found: {folder_path}"
+            StartupValidator.validate(
+                folder_path
+            )
+
+        except Exception as error:
+
+            app_logger.exception(
+                "Startup validation failed."
             )
 
             print(
-                f"\n❌ Folder not found: {folder_path}"
+                f"\n❌ {error}"
             )
 
             return
 
-        print(
-            "\nScanning documents..."
+        top_k = args.top_k
+
+        app_logger.info(
+            f"Folder : {folder_path}"
         )
 
         app_logger.info(
-            f"Scanning folder: {folder_path}"
+            f"Top K  : {top_k}"
+        )
+
+        print(
+            "\nScanning documents..."
         )
 
         index_pipeline = IndexPipeline()
@@ -64,10 +121,6 @@ def main():
             "\n✅ Documents indexed successfully!"
         )
 
-        app_logger.info(
-            "Documents indexed successfully."
-        )
-
         query_pipeline = QueryPipeline(
             vector_service=index_result[
                 "vector_service"
@@ -75,6 +128,14 @@ def main():
             bm25_service=index_result[
                 "bm25_service"
             ],
+        )
+
+        session = SessionManager()
+
+        print("\nSession Started")
+        print("-" * 60)
+        print(
+            f"Session ID : {session.session_id}"
         )
 
         while True:
@@ -86,7 +147,7 @@ def main():
             if query.lower() == "exit":
 
                 app_logger.info(
-                    "Application closed by user."
+                    "Application closed."
                 )
 
                 print(
@@ -103,10 +164,6 @@ def main():
 
                 continue
 
-            app_logger.info(
-                f"User Query: {query}"
-            )
-
             print(
                 "\nSearching...\n"
             )
@@ -115,21 +172,19 @@ def main():
 
                 response = query_pipeline.run(
                     query=query,
-                    top_k=5,
+                    top_k=top_k,
                 )
 
-            except Exception as error:
+                session.increment_queries()
+
+            except Exception:
 
                 app_logger.exception(
-                    "Query processing failed."
+                    "Query failed."
                 )
 
                 print(
-                    "\n❌ Failed to process your query."
-                )
-
-                print(
-                    "Check logs/application.log for details."
+                    "\n❌ Failed to process query."
                 )
 
                 continue
@@ -150,33 +205,87 @@ def main():
                 "citations"
             ]
 
-            if not citations:
+            if citations:
 
-                print(
-                    "No citations found."
-                )
-
-            else:
-
-                for index, citation in enumerate(
+                for i, citation in enumerate(
                     citations,
                     start=1,
                 ):
 
                     print(
-                        f"{index}. "
+                        f"{i}. "
                         f"{citation['source']} "
                         f"(Page {citation['page']})"
                     )
 
+            else:
+
+                print(
+                    "No citations found."
+                )
+
+            metrics = response[
+                "metrics"
+            ]
+
+            print("\n" + "=" * 60)
+            print("Performance")
+            print("=" * 60)
+
+            print(
+                f"Hybrid Search : {metrics['retrieval_time']} sec"
+            )
+
+            print(
+                f"Reranking     : {metrics['rerank_time']} sec"
+            )
+
+            print(
+                f"Prompt Build  : {metrics['prompt_time']} sec"
+            )
+
+            print(
+                f"Gemini        : {metrics['llm_time']} sec"
+            )
+
+            print(
+                f"Total Time    : {metrics['total_time']} sec"
+            )
+
+            print(
+                f"Retrieved     : {metrics['retrieved_chunks']} chunks"
+            )
+
+            print(
+                f"Final         : {metrics['final_chunks']} chunks"
+            )
+
+            print("\n" + "=" * 60)
+            print("Session Information")
+            print("=" * 60)
+
+            session_info = session.get_info()
+
+            print(
+                f"Session ID    : {session_info['session_id']}"
+            )
+
+            print(
+                f"Queries Asked : {session_info['queries']}"
+            )
+
+            print(
+                f"Uptime        : {session_info['uptime_seconds']} sec"
+            )
+
     except KeyboardInterrupt:
 
         app_logger.warning(
-            "Application interrupted by user."
+            "Application interrupted."
         )
 
         print(
-            "\n\n⚠ Application interrupted."
+            "\n\nApplication interrupted."
         )
 
     except Exception:
@@ -186,11 +295,7 @@ def main():
         )
 
         print(
-            "\n❌ Unexpected application error."
-        )
-
-        print(
-            "See logs/application.log for details."
+            "\nUnexpected application error."
         )
 
 

@@ -1,4 +1,11 @@
-from app.fusion.rrf_service import RRFService
+import time
+
+from app.fusion.rrf_service import (
+    RRFService,
+)
+from app.logging.logger import (
+    app_logger,
+)
 
 
 class HybridSearchService:
@@ -10,8 +17,14 @@ class HybridSearchService:
     ):
 
         self.bm25 = bm25_service
+
         self.vector = vector_retriever
+
         self.rrf = RRFService()
+
+        app_logger.info(
+            "HybridSearchService initialized."
+        )
 
     def search(
         self,
@@ -19,19 +32,40 @@ class HybridSearchService:
         k=5,
     ):
 
+        if not query.strip():
+
+            raise ValueError(
+                "Query cannot be empty."
+            )
+
+        start_time = (
+            time.perf_counter()
+        )
+
+        # --------------------------
         # BM25 Retrieval
+        # --------------------------
+
         bm25_results = self.bm25.search(
             query,
-            k
+            k,
         )
 
+        # --------------------------
         # Vector Retrieval
-        vector_results = self.vector.retrieve(
-            query,
-            k
+        # --------------------------
+
+        vector_results = (
+            self.vector.retrieve(
+                query,
+                k,
+            )
         )
 
+        # --------------------------
         # Reciprocal Rank Fusion
+        # --------------------------
+
         fused_results = self.rrf.fuse(
             [
                 bm25_results,
@@ -39,8 +73,28 @@ class HybridSearchService:
             ]
         )
 
+        elapsed = round(
+            time.perf_counter()
+            - start_time,
+            3,
+        )
+
+        app_logger.info(
+            f"Hybrid search completed "
+            f"(BM25={len(bm25_results)}, "
+            f"Vector={len(vector_results)}, "
+            f"Fused={len(fused_results)}, "
+            f"{elapsed}s)"
+        )
+
         return {
+
             "bm25": bm25_results,
+
             "vector": vector_results,
+
             "fused": fused_results,
+
+            "hybrid_time": elapsed,
+
         }

@@ -27,12 +27,55 @@ class ConversationMemory:
             }
         )
 
-    def get_history(self):
+    def get_history(
+        self,
+    ):
 
         return list(
             self.memory
         )
 
-    def clear(self):
+    def clear(
+        self,
+    ):
 
         self.memory.clear()
+
+    # ----------------------------------
+    # Memory Statistics
+    # ----------------------------------
+
+    def size(
+        self,
+    ):
+
+        return len(
+            self.memory
+        )
+
+    def is_empty(
+        self,
+    ):
+
+        return (
+            len(self.memory) == 0
+        )
+
+    def get_statistics(
+        self,
+    ):
+
+        return {
+
+            "stored_turns": len(
+                self.memory
+            ),
+
+            "max_turns": self.max_turns,
+
+            "available_slots": (
+                self.max_turns
+                - len(self.memory)
+            ),
+
+        }

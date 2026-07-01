@@ -5,10 +5,17 @@ import pickle
 import faiss
 import numpy as np
 
+from app.logging.logger import app_logger
+
 
 class FAISSStore:
 
-    def __init__(self, dimension):
+    DEFAULT_BATCH_SIZE = 512
+
+    def __init__(
+        self,
+        dimension,
+    ):
 
         self.dimension = dimension
 
@@ -24,19 +31,69 @@ class FAISSStore:
         self,
         embeddings,
         chunks,
+        batch_size=None,
     ):
 
-        embeddings = np.array(
-            embeddings,
-            dtype="float32",
-        )
+        if batch_size is None:
 
-        self.index.add(
+            batch_size = (
+                self.DEFAULT_BATCH_SIZE
+            )
+
+        if len(
+            embeddings
+        ) != len(
+            chunks
+        ):
+
+            raise ValueError(
+                "Embeddings and chunks count do not match."
+            )
+
+        total = len(
             embeddings
         )
 
-        self.chunks.extend(
-            chunks
+        if total == 0:
+
+            app_logger.warning(
+                "No embeddings supplied for indexing."
+            )
+
+            return
+
+        app_logger.info(
+            f"Adding {total} embeddings to FAISS "
+            f"(batch size={batch_size})."
+        )
+
+        for start in range(
+            0,
+            total,
+            batch_size,
+        ):
+
+            end = min(
+                start + batch_size,
+                total,
+            )
+
+            batch_embeddings = np.asarray(
+                embeddings[start:end],
+                dtype="float32",
+            )
+
+            self.index.add(
+                batch_embeddings
+            )
+
+            self.chunks.extend(
+                chunks[start:end]
+            )
+
+        app_logger.info(
+            f"FAISS indexing completed. "
+            f"Total vectors: {self.index.ntotal}"
         )
 
     def search(
@@ -45,14 +102,29 @@ class FAISSStore:
         k=5,
     ):
 
-        query_embedding = np.array(
+        if self.index.ntotal == 0:
+
+            app_logger.warning(
+                "Search attempted on an empty FAISS index."
+            )
+
+            return []
+
+        query_embedding = np.asarray(
             [query_embedding],
             dtype="float32",
         )
 
-        distances, indices = self.index.search(
-            query_embedding,
+        k = min(
             k,
+            self.index.ntotal,
+        )
+
+        distances, indices = (
+            self.index.search(
+                query_embedding,
+                k,
+            )
         )
 
         results = []
@@ -63,12 +135,15 @@ class FAISSStore:
         ):
 
             if idx == -1:
+
                 continue
 
             results.append(
                 {
                     "chunk": self.chunks[idx],
-                    "score": float(distance),
+                    "score": float(
+                        distance
+                    ),
                 }
             )
 
@@ -82,7 +157,9 @@ class FAISSStore:
     ):
 
         os.makedirs(
-            os.path.dirname(index_path),
+            os.path.dirname(
+                index_path
+            ),
             exist_ok=True,
         )
 
@@ -112,6 +189,10 @@ class FAISSStore:
                 file,
                 indent=4,
             )
+
+        app_logger.info(
+            "FAISS index saved successfully."
+        )
 
     def load(
         self,
@@ -143,13 +224,20 @@ class FAISSStore:
                 encoding="utf-8",
             ) as file:
 
-                self.metadata = json.load(
-                    file
+                self.metadata = (
+                    json.load(
+                        file
+                    )
                 )
 
         else:
 
             self.metadata = {}
+
+        app_logger.info(
+            f"Loaded FAISS index "
+            f"({self.index.ntotal} vectors)."
+        )
 
     def exists(
         self,
@@ -158,6 +246,53 @@ class FAISSStore:
     ):
 
         return (
-            os.path.exists(index_path)
-            and os.path.exists(chunks_path)
+
+            os.path.exists(
+                index_path
+            )
+
+            and
+
+            os.path.exists(
+                chunks_path
+            )
+
+        )
+
+    # ----------------------------------
+    # Statistics Helpers
+    # ----------------------------------
+
+    def total_vectors(
+        self,
+    ):
+
+        return self.index.ntotal
+
+    def total_chunks(
+        self,
+    ):
+
+        return len(
+            self.chunks
+        )
+
+    def embedding_dimension(
+        self,
+    ):
+
+        return self.dimension
+
+    def get_metadata(
+        self,
+    ):
+
+        return self.metadata
+
+    def is_empty(
+        self,
+    ):
+
+        return (
+            self.index.ntotal == 0
         )

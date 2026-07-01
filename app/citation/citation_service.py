@@ -6,6 +6,7 @@ class CitationService:
     ):
 
         citations = []
+
         seen = set()
 
         for result in search_results:
@@ -27,15 +28,66 @@ class CitationService:
                 page,
             )
 
-            if key not in seen:
+            if key in seen:
 
-                seen.add(key)
+                continue
 
-                citations.append(
-                    {
-                        "source": source,
-                        "page": page,
-                    }
-                )
+            seen.add(
+                key
+            )
+
+            citations.append(
+                {
+                    "source": source,
+                    "page": page,
+                }
+            )
 
         return citations
+
+    # ----------------------------------
+    # Statistics
+    # ----------------------------------
+
+    def total_sources(
+        self,
+        citations,
+    ):
+
+        return len(
+            citations
+        )
+
+    def unique_documents(
+        self,
+        citations,
+    ):
+
+        return len(
+
+            {
+
+                citation["source"]
+
+                for citation in citations
+
+            }
+
+        )
+
+    def get_statistics(
+        self,
+        citations,
+    ):
+
+        return {
+
+            "total_sources": self.total_sources(
+                citations
+            ),
+
+            "unique_documents": self.unique_documents(
+                citations
+            ),
+
+        }

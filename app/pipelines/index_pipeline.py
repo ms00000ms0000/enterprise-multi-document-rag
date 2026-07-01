@@ -16,20 +16,32 @@ class IndexPipeline:
 
     def __init__(self):
 
-        self.document_manager = DocumentManager()
+        self.document_manager = (
+            DocumentManager()
+        )
 
-        self.loader_factory = LoaderFactory()
+        self.loader_factory = (
+            LoaderFactory()
+        )
 
-        self.chunking_service = ChunkingService()
+        self.chunking_service = (
+            ChunkingService()
+        )
 
-        self.embedding_service = EmbeddingService()
+        self.embedding_service = (
+            EmbeddingService()
+        )
 
         self.vector_service = None
 
-        self.bm25_service = BM25Service()
+        self.bm25_service = (
+            BM25Service()
+        )
 
-        self.hash_service = DocumentHashService(
-            settings.HASH_PATH
+        self.hash_service = (
+            DocumentHashService(
+                settings.HASH_PATH
+            )
         )
 
     def run(
@@ -43,8 +55,10 @@ class IndexPipeline:
                 f"Scanning folder: {folder_path}"
             )
 
-            document_paths = self.document_manager.get_documents(
-                folder_path
+            document_paths = (
+                self.document_manager.get_documents(
+                    folder_path
+                )
             )
 
             if not document_paths:
@@ -85,8 +99,10 @@ class IndexPipeline:
                     f"Loading document: {path}"
                 )
 
-                loader = self.loader_factory.get_loader(
-                    path
+                loader = (
+                    self.loader_factory.get_loader(
+                        path
+                    )
                 )
 
                 docs = loader.load(
@@ -97,20 +113,32 @@ class IndexPipeline:
                     docs
                 )
 
-            app_logger.info(
-                f"Loaded {len(all_documents)} pages."
-            )
-
-            chunks = self.chunking_service.chunk_documents(
+            total_pages = len(
                 all_documents
             )
 
             app_logger.info(
-                f"Created {len(chunks)} chunks."
+                f"Loaded {total_pages} pages."
             )
 
-            embeddings = self.embedding_service.embed_documents(
+            chunks = (
+                self.chunking_service.chunk_documents(
+                    all_documents
+                )
+            )
+
+            total_chunks = len(
                 chunks
+            )
+
+            app_logger.info(
+                f"Created {total_chunks} chunks."
+            )
+
+            embeddings = (
+                self.embedding_service.embed_documents(
+                    chunks
+                )
             )
 
             dimension = len(
@@ -121,13 +149,17 @@ class IndexPipeline:
                 f"Embedding dimension: {dimension}"
             )
 
-            self.vector_service = VectorService(
-                dimension
+            self.vector_service = (
+                VectorService(
+                    dimension
+                )
             )
 
-            index_exists = self.vector_service.exists(
-                settings.INDEX_PATH,
-                settings.CHUNKS_PATH,
+            index_exists = (
+                self.vector_service.exists(
+                    settings.INDEX_PATH,
+                    settings.CHUNKS_PATH,
+                )
             )
 
             if (
@@ -158,9 +190,13 @@ class IndexPipeline:
                 )
 
                 return {
+
                     "vector_service": self.vector_service,
+
                     "bm25_service": self.bm25_service,
+
                     "chunks": self.vector_service.store.chunks,
+
                 }
 
             if rebuild_required:
@@ -192,6 +228,10 @@ class IndexPipeline:
                 chunks,
             )
 
+            # -----------------------------------
+            # Store Index Statistics
+            # -----------------------------------
+
             self.vector_service.store.metadata = {
 
                 "documents": [
@@ -201,11 +241,22 @@ class IndexPipeline:
                     }
 
                     for path in document_paths
+
                 ],
 
-                "total_chunks": len(chunks),
+                "total_documents": len(
+                    document_paths
+                ),
+
+                "total_pages": total_pages,
+
+                "total_chunks": total_chunks,
 
                 "embedding_dimension": dimension,
+
+                "indexed_vectors": len(
+                    embeddings
+                ),
 
             }
 
@@ -239,6 +290,30 @@ class IndexPipeline:
 
             app_logger.info(
                 "BM25 index built successfully."
+            )
+
+            app_logger.info(
+                "Index Statistics:"
+            )
+
+            app_logger.info(
+                f"Documents : {len(document_paths)}"
+            )
+
+            app_logger.info(
+                f"Pages : {total_pages}"
+            )
+
+            app_logger.info(
+                f"Chunks : {total_chunks}"
+            )
+
+            app_logger.info(
+                f"Vectors : {len(embeddings)}"
+            )
+
+            app_logger.info(
+                f"Dimension : {dimension}"
             )
 
             return {
